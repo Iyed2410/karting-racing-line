@@ -219,3 +219,21 @@ function perpendicularOffset(point, direction, offset) {
     y: point.y + perpY * offset
   };
 }
+
+// Export for Node/Jest testing
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = {
+    distance,
+    angle,
+    curvature,
+    radiusOfCurvature,
+    interpolate,
+    lerp,
+    heading,
+    pointInPolygon,
+    segmentsIntersect,
+    trackSelfIntersects,
+    trackLength,
+    perpendicularOffset
+  };
+}

@@ -65,63 +65,97 @@ function initialHeuristicLine(centerline) {
  * @param {number} iterations - Number of optimization iterations
  * @returns {Array} Optimized racing line
  */
-function optimizeLine(racingLine, trackData, iterations = 50) {
+function optimizeLine(racingLine, trackData, iterations = 120) {
+  // Constrained simulated-annealing optimizer with smoothness and dynamics-aware scoring
   if (!racingLine || racingLine.length < 3) return racingLine;
-  
-  let optimizedLine = JSON.parse(JSON.stringify(racingLine)); // Deep copy
-  const learningRate = 0.1;
-  
-  for (let iter = 0; iter < iterations; iter++) {
-    // Calculate current lap time
-    const currentLapTime = calculateLapTime(optimizedLine, trackData);
-    
-    // Try small adjustments to each point
-    for (let i = 1; i < optimizedLine.length - 1; i++) {
-      const original = { x: optimizedLine[i].x, y: optimizedLine[i].y };
-      
-      let bestTime = currentLapTime;
-      let bestDelta = { x: 0, y: 0 };
-      
-      // Try small movements in 8 directions
-      const stepSize = 0.5;
-      const directions = [
-        { x: stepSize, y: 0 }, { x: -stepSize, y: 0 },
-        { x: 0, y: stepSize }, { x: 0, y: -stepSize },
-        { x: stepSize, y: stepSize }, { x: stepSize, y: -stepSize },
-        { x: -stepSize, y: stepSize }, { x: -stepSize, y: -stepSize }
-      ];
-      
-      for (let dir of directions) {
-        // Apply constraint: stay within track boundaries
-        const candidate = {
-          x: original.x + dir.x * learningRate,
-          y: original.y + dir.y * learningRate
-        };
-        
-        if (!isPointInTrackBounds(candidate, trackData)) continue;
-        
-        optimizedLine[i] = candidate;
-        const newTime = calculateLapTime(optimizedLine, trackData);
-        
-        if (newTime < bestTime) {
-          bestTime = newTime;
-          bestDelta = { x: dir.x * learningRate, y: dir.y * learningRate };
-        }
-      }
-      
-      // Apply best improvement
-      optimizedLine[i].x = original.x + bestDelta.x;
-      optimizedLine[i].y = original.y + bestDelta.y;
+
+  const clone = (arr) => JSON.parse(JSON.stringify(arr));
+  let best = clone(racingLine);
+  let bestScore = scoreLine(best, trackData);
+
+  const iters = Math.max(40, iterations);
+  const t0 = 1.0;
+  const tEnd = 1e-4;
+
+  // keep endpoints fixed for stability
+  const fixedStart = 0;
+  const fixedEnd = best.length - 1;
+
+  for (let k = 0; k < iters; k++) {
+    const t = t0 * Math.pow(tEnd / t0, k / Math.max(1, iters - 1));
+
+    const candidate = clone(best);
+
+    // Propose perturbations: choose a handful of indices (not endpoints)
+    const nPerturb = 1 + Math.floor(3 * t * Math.random());
+    for (let p = 0; p < nPerturb; p++) {
+      const i = 1 + Math.floor(Math.random() * (candidate.length - 2));
+      if (i <= fixedStart || i >= fixedEnd) continue;
+
+      // compute local scale from neighbor distances
+      const a = candidate[Math.max(0, i - 1)];
+      const b = candidate[i];
+      const c = candidate[Math.min(candidate.length - 1, i + 1)];
+      const segLen = Math.max(1e-3, (distance(a, b) + distance(b, c)) / 2);
+
+      // perturb along normal and tangent with small magnitude scaled by temperature
+      const tx = c.x - a.x;
+      const ty = c.y - a.y;
+      const tlen = Math.hypot(tx, ty) || 1;
+      const nx = -ty / tlen;
+      const ny = tx / tlen;
+
+      const mag = segLen * (0.1 + 4 * t); // step magnitude
+      const dx = (Math.random() - 0.5) * mag;
+      const dy = (Math.random() - 0.5) * (mag * 0.5);
+
+      // combine tangent and normal moves
+      const prop = {
+        x: b.x + tx / tlen * dx + nx * dy,
+        y: b.y + ty / tlen * dx + ny * dy
+      };
+
+      // enforce bounds and small step
+      if (!isPointInTrackBounds(prop, trackData)) continue;
+      if (Math.hypot(prop.x - b.x, prop.y - b.y) > segLen * 2) continue;
+
+      candidate[i] = prop;
     }
-    
-    // Early exit if improvement is minimal
-    const newLapTime = calculateLapTime(optimizedLine, trackData);
-    if (Math.abs(newLapTime - currentLapTime) < 0.001) {
-      break;
+
+    // local smoothing step (light) to promote continuity
+    const smoothCandidate = smoothLocal(candidate, 1);
+
+    const score = scoreLine(smoothCandidate, trackData);
+    const delta = score - bestScore;
+
+    if (delta < 0 || Math.exp(-delta / Math.max(t, 1e-9)) > Math.random()) {
+      best = smoothCandidate;
+      bestScore = score;
     }
   }
-  
-  return optimizedLine;
+
+  // final global smoothing pass to produce continuous driving line
+  const finalLine = smoothLine(best, 3);
+  return finalLine;
+}
+
+/**
+ * Light smoothing applied to interior points only (keeps endpoints)
+ */
+function smoothLocal(line, iterations = 1) {
+  const out = JSON.parse(JSON.stringify(line));
+  const n = out.length;
+  for (let it = 0; it < iterations; it++) {
+    for (let i = 1; i < n - 1; i++) {
+      const prev = out[i - 1];
+      const cur = out[i];
+      const next = out[i + 1];
+      // simple centroid move weighted to keep shape
+      out[i].x = (prev.x + cur.x * 2 + next.x) / 4;
+      out[i].y = (prev.y + cur.y * 2 + next.y) / 4;
+    }
+  }
+  return out;
 }
 
 /**
@@ -133,34 +167,47 @@ function optimizeLine(racingLine, trackData, iterations = 50) {
  * @returns {Array} Smoothed racing line
  */
 function smoothLine(racingLine, iterations = 3) {
+  // Use Catmull-Rom spline resampling to create a smooth, continuous path
   if (!racingLine || racingLine.length < 3) return racingLine;
-  
-  let smoothed = JSON.parse(JSON.stringify(racingLine));
-  
-  for (let iter = 0; iter < iterations; iter++) {
-    const newLine = [];
-    
-    for (let i = 0; i < smoothed.length; i++) {
-      if (i === 0 || i === smoothed.length - 1) {
-        // Keep endpoints fixed
-        newLine.push(smoothed[i]);
-      } else {
-        // Average with neighbors (Laplacian smoothing)
-        const prev = smoothed[i - 1];
-        const curr = smoothed[i];
-        const next = smoothed[i + 1];
-        
-        newLine.push({
-          x: (prev.x + curr.x + next.x) / 3,
-          y: (prev.y + curr.y + next.y) / 3
-        });
+
+  // Number of samples per segment (higher = smoother)
+  const samplesPerSegment = 6 * Math.max(1, iterations);
+  const out = [];
+
+  // Helper for Catmull-Rom interpolation
+  function catmullRom(p0, p1, p2, p3, t) {
+    const t2 = t * t;
+    const t3 = t2 * t;
+    const x = 0.5 * ((2 * p1.x) + (-p0.x + p2.x) * t + (2 * p0.x - 5 * p1.x + 4 * p2.x - p3.x) * t2 + (-p0.x + 3 * p1.x - 3 * p2.x + p3.x) * t3);
+    const y = 0.5 * ((2 * p1.y) + (-p0.y + p2.y) * t + (2 * p0.y - 5 * p1.y + 4 * p2.y - p3.y) * t2 + (-p0.y + 3 * p1.y - 3 * p2.y + p3.y) * t3);
+    return { x, y };
+  }
+
+  // For closed tracks, wrap indices; otherwise clamp endpoints
+  const closed = false; // maintain as open for user-drawn tracks
+  const n = racingLine.length;
+
+  for (let i = 0; i < n - 1; i++) {
+    const p0 = i === 0 ? racingLine[i] : racingLine[i - 1];
+    const p1 = racingLine[i];
+    const p2 = racingLine[i + 1];
+    const p3 = i + 2 < n ? racingLine[i + 2] : racingLine[i + 1];
+
+    // sample along this segment
+    for (let s = 0; s < samplesPerSegment; s++) {
+      const t = s / samplesPerSegment;
+      const pt = catmullRom(p0, p1, p2, p3, t);
+      // avoid duplicates
+      if (out.length === 0 || Math.hypot(out[out.length - 1].x - pt.x, out[out.length - 1].y - pt.y) > 0.1) {
+        out.push(pt);
       }
     }
-    
-    smoothed = newLine;
   }
-  
-  return smoothed;
+
+  // add final point
+  out.push(racingLine[racingLine.length - 1]);
+
+  return out;
 }
 
 /**
@@ -172,33 +219,76 @@ function smoothLine(racingLine, iterations = 3) {
  * @returns {number} Lap time in seconds
  */
 function calculateLapTime(racingLine, trackData) {
+  // Build segments and compute realistic speed profile using kart dynamics
   if (!racingLine || racingLine.length < 2) return Infinity;
-  
+
   const segments = [];
-  let totalTime = 0;
-  
-  // Build segments from racing line
   for (let i = 0; i < racingLine.length - 1; i++) {
     const p1 = racingLine[i];
     const p2 = racingLine[i + 1];
     const p3 = racingLine[Math.min(i + 2, racingLine.length - 1)];
-    
+
     const segLength = distance(p1, p2);
     const radius = radiusOfCurvature(p1, p2, p3);
     const maxSpeed = kart.maxCornerSpeed(radius);
-    
-    segments.push({
-      length: segLength,
-      speed: maxSpeed,
-      radius: radius
-    });
-    
-    if (maxSpeed > 0) {
-      totalTime += segLength / maxSpeed;
-    }
+
+    segments.push({ length: segLength, maxSpeed: maxSpeed, radius: radius });
   }
-  
-  return totalTime;
+
+  // If kart physics provides a speed profile, use it
+  let speeds = [];
+  try {
+    speeds = kart.computeSpeedProfile(segments);
+  } catch (e) {
+    // fallback: use maxCornerSpeed per segment
+    speeds = segments.map(s => s.maxSpeed || 0.1);
+  }
+
+  // assign computed speeds and estimate lap time
+  for (let i = 0; i < segments.length; i++) segments[i].speed = speeds[i] || segments[i].maxSpeed || 0.1;
+  return kart.estimateLapTime(segments);
+}
+
+/**
+ * Score a candidate line: lap time + smoothness/deviation penalties
+ */
+function scoreLine(racingLine, trackData) {
+  // Hard invalid checks
+  if (!racingLine || racingLine.length < 2) return 1e9;
+  if (trackSelfIntersects(racingLine)) return 1e9;
+
+  for (let pt of racingLine) {
+    if (!isPointInTrackBounds(pt, trackData)) return 1e9;
+  }
+
+  const lapTime = calculateLapTime(racingLine, trackData);
+
+  // smoothness penalty: sum squared curvature (1/radius)
+  let smoothPenalty = 0;
+  for (let i = 0; i < racingLine.length - 2; i++) {
+    const r = radiusOfCurvature(racingLine[i], racingLine[i + 1], racingLine[i + 2]);
+    const inv = r === 0 || r === Infinity ? 0 : 1 / Math.max(1e-3, Math.abs(r));
+    smoothPenalty += inv * inv;
+  }
+
+  // deviation penalty: encourage staying near center if provided
+  let devPenalty = 0;
+  if (trackData && trackData.centerline && trackData.centerline.length) {
+    for (let pt of racingLine) {
+      // nearest centerline distance (fast approximate)
+      let best = Infinity;
+      for (let c of trackData.centerline) {
+        best = Math.min(best, distance(pt, c));
+      }
+      devPenalty += best * best;
+    }
+    devPenalty = devPenalty / racingLine.length;
+  }
+
+  const alpha = 0.15; // smoothness weight
+  const beta = 0.001; // deviation weight
+
+  return lapTime + alpha * smoothPenalty + beta * devPenalty;
 }
 
 /**

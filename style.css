@@ -114,12 +114,26 @@ html, body {
   border: 2px solid var(--border-color);
 }
 
-#trackCanvas {
-  display: block;
+/* Ensure wrapper has an initial height so canvas measurements are stable */
+.canvas-wrapper { min-height: 320px; }
+
+#trackCanvas,
+#overlayCanvas {
+  position: absolute;
+  left: 0;
+  top: 0;
   width: 100%;
   height: 100%;
+  display: block;
+}
+
+#trackCanvas {
   cursor: crosshair;
   touch-action: none;
+}
+
+#overlayCanvas {
+  pointer-events: none; /* overlay only used for HUD/markers */
 }
 
 .canvas-info {

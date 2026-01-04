@@ -4,12 +4,18 @@
  */
 
 class CanvasManager {
-  constructor(canvasElement) {
+  constructor(canvasElement, overlayElement) {
     this.canvas = canvasElement;
+    this.overlay = overlayElement || null;
     this.ctx = this.canvas.getContext('2d');
+    this.overlayCtx = this.overlay ? this.overlay.getContext('2d') : null;
     this.scale = 1;
     this.panX = 0;
     this.panY = 0;
+    this.useWebGL = false;
+    this.webglRenderer = null;
+    this.editMode = false;
+    this.draggingPoint = null;
     
     // Set up high-DPI support for mobile
     this.setupHighDPI();
@@ -37,13 +43,39 @@ class CanvasManager {
   setupHighDPI() {
     const rect = this.canvas.getBoundingClientRect();
     const dpr = window.devicePixelRatio || 1;
-    
-    this.canvas.width = rect.width * dpr;
-    this.canvas.height = rect.height * dpr;
-    
-    this.ctx.scale(dpr, dpr);
+
+    // Set CSS size explicitly to avoid fractional sizing issues
+    this.canvas.style.width = rect.width + 'px';
+    this.canvas.style.height = rect.height + 'px';
+
+    // Backing store size in device pixels
+    this.canvas.width = Math.max(1, Math.round(rect.width * dpr));
+    this.canvas.height = Math.max(1, Math.round(rect.height * dpr));
+
+    // Reset transform and map CSS px -> device px
+    this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     this.displayWidth = rect.width;
     this.displayHeight = rect.height;
+
+    // Overlay canvas (HUD) setup
+    if (this.overlay && this.overlayCtx) {
+      this.overlay.style.width = rect.width + 'px';
+      this.overlay.style.height = rect.height + 'px';
+      this.overlay.width = Math.max(1, Math.round(rect.width * dpr));
+      this.overlay.height = Math.max(1, Math.round(rect.height * dpr));
+      this.overlayCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+
+    // initialize WebGL renderer if requested
+    if (this.useWebGL && !this.webglRenderer && typeof WebGLRenderer !== 'undefined') {
+      try {
+        this.webglRenderer = new WebGLRenderer(this.canvas);
+      } catch (e) {
+        console.warn('WebGL renderer unavailable', e);
+        this.webglRenderer = null;
+        this.useWebGL = false;
+      }
+    }
   }
   
   /**
@@ -86,11 +118,21 @@ class CanvasManager {
    * Handle mouse down - start drawing or panning
    */
   handleMouseDown(e) {
+    const coords = this.getCanvasCoords(e);
     if (e.button === 0) {
-      // Left click - draw track point
-      const coords = this.getCanvasCoords(e);
-      this.addTrackPoint(coords.x, coords.y);
-      this.isDrawing = true;
+      // Left click - draw or select point when in edit mode
+      if (this.editMode) {
+        const idx = this.findNearestPointIndex(coords.x, coords.y, 8);
+        if (idx >= 0) {
+          this.draggingPoint = idx;
+        } else {
+          this.addTrackPoint(coords.x, coords.y);
+          this.isDrawing = true;
+        }
+      } else {
+        this.addTrackPoint(coords.x, coords.y);
+        this.isDrawing = true;
+      }
     } else if (e.button === 2) {
       // Right click - pan
       this.isPanning = true;
@@ -108,7 +150,14 @@ class CanvasManager {
       this.addTrackPoint(coords.x, coords.y);
       this.render();
     }
-    
+
+    if (this.draggingPoint != null && this.draggingPoint >= 0) {
+      const coords = this.getCanvasCoords(e);
+      this.trackPoints[this.draggingPoint].x = coords.x;
+      this.trackPoints[this.draggingPoint].y = coords.y;
+      this.render();
+    }
+
     if (this.isPanning) {
       const dx = e.clientX - this.lastX;
       const dy = e.clientY - this.lastY;
@@ -126,6 +175,10 @@ class CanvasManager {
   handleMouseUp(e) {
     this.isDrawing = false;
     this.isPanning = false;
+    if (this.draggingPoint != null) {
+      this.draggingPoint = null;
+      this.saveToHistory();
+    }
   }
   
   /**
@@ -170,6 +223,20 @@ class CanvasManager {
   handleTouchEnd(e) {
     this.isDrawing = false;
     this.isPanning = false;
+  }
+
+  findNearestPointIndex(x, y, threshold = 8) {
+    let best = -1;
+    let bestDist = Infinity;
+    for (let i = 0; i < this.trackPoints.length; i++) {
+      const p = this.trackPoints[i];
+      const d = Math.hypot(p.x - x, p.y - y);
+      if (d < bestDist && d <= threshold) {
+        bestDist = d;
+        best = i;
+      }
+    }
+    return best;
   }
   
   /**
@@ -274,36 +341,74 @@ class CanvasManager {
    * Draw the entire canvas
    */
   render() {
-    // Clear canvas
+    // Clear canvas (reset transform first)
+    this.ctx.save();
+    this.ctx.setTransform(1, 0, 0, 1, 0, 0);
     this.ctx.fillStyle = '#ffffff';
-    this.ctx.fillRect(0, 0, this.displayWidth, this.displayHeight);
-    
-    // Apply transformations
+    this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+    this.ctx.restore();
+
+    // Always clear overlay canvas (HUD) to avoid accumulating drawings
+    if (this.overlayCtx) {
+      this.overlayCtx.save();
+      this.overlayCtx.setTransform(1, 0, 0, 1, 0, 0);
+      this.overlayCtx.clearRect(0, 0, this.overlay.width, this.overlay.height);
+      this.overlayCtx.restore();
+    }
+
+    // If WebGL rendering is enabled and available, let it draw the main lines
+    if (this.useWebGL && this.webglRenderer && this.webglRenderer.gl) {
+      if (this.trackPoints.length > 0) this.webglRenderer.drawLine(this.trackPoints, [0.3,0.3,0.3,1]);
+      if (this.racingLine && this.racingLine.length > 0) this.webglRenderer.drawLine(this.racingLine, [0.0,0.7,0.0,1]);
+      // draw overlays using 2D context
+      if (this.overlayCtx) {
+        // clear overlay entirely
+        this.overlayCtx.save();
+        this.overlayCtx.setTransform(1,0,0,1,0,0);
+        this.overlayCtx.clearRect(0,0,this.overlay.width,this.overlay.height);
+        this.overlayCtx.restore();
+
+        this.overlayCtx.save();
+        this.overlayCtx.translate(this.panX, this.panY);
+        this.overlayCtx.scale(this.scale, this.scale);
+        if (this.showApexes && this.racingLine) this.drawApexPoints(this.racingLine);
+        if (this.showSpeedHeat && this.racingLine) this.drawSpeedHeatmap(this.racingLine);
+        this.overlayCtx.restore();
+      } else {
+        this.ctx.save();
+        this.ctx.translate(this.panX, this.panY);
+        this.ctx.scale(this.scale, this.scale);
+        if (this.showApexes && this.racingLine) this.drawApexPoints(this.racingLine);
+        if (this.showSpeedHeat && this.racingLine) this.drawSpeedHeatmap(this.racingLine);
+        this.ctx.restore();
+      }
+      return;
+    }
+
+    // Apply transformations for 2D rendering
     this.ctx.save();
     this.ctx.translate(this.panX, this.panY);
     this.ctx.scale(this.scale, this.scale);
-    
-    // Draw grid
+
+    // Draw grid and lines in 2D
     this.drawGrid();
-    
-    // Draw track centerline
-    if (this.trackPoints.length > 0) {
-      this.drawTrack(this.trackPoints);
-    }
-    
-    // Draw racing line if generated
+    if (this.trackPoints.length > 0) this.drawTrack(this.trackPoints);
     if (this.racingLine && this.racingLine.length > 0) {
       this.drawRacingLine(this.racingLine);
-      
-      if (this.showApexes) {
-        this.drawApexPoints(this.racingLine);
-      }
-      
-      if (this.showSpeedHeat) {
-        this.drawSpeedHeatmap(this.racingLine);
+      // Draw overlays (apexes / heatmap) to overlay canvas if present
+      if (this.overlayCtx) {
+        this.overlayCtx.save();
+        this.overlayCtx.translate(this.panX, this.panY);
+        this.overlayCtx.scale(this.scale, this.scale);
+        if (this.showApexes) this.drawApexPoints(this.racingLine);
+        if (this.showSpeedHeat) this.drawSpeedHeatmap(this.racingLine);
+        this.overlayCtx.restore();
+      } else {
+        if (this.showApexes) this.drawApexPoints(this.racingLine);
+        if (this.showSpeedHeat) this.drawSpeedHeatmap(this.racingLine);
       }
     }
-    
+
     this.ctx.restore();
   }
   
@@ -409,13 +514,14 @@ class CanvasManager {
    */
   drawApexPoints(points) {
     const apexes = findApexes(points);
-    
-    this.ctx.fillStyle = '#ff6600';
+    const ctx = this.overlayCtx || this.ctx;
+
+    ctx.fillStyle = '#ff6600';
     for (let idx of apexes) {
       const point = points[idx];
-      this.ctx.beginPath();
-      this.ctx.arc(point.x, point.y, 3, 0, Math.PI * 2);
-      this.ctx.fill();
+      ctx.beginPath();
+      ctx.arc(point.x, point.y, 3, 0, Math.PI * 2);
+      ctx.fill();
     }
   }
   
@@ -424,25 +530,26 @@ class CanvasManager {
    */
   drawSpeedHeatmap(points) {
     // Similar to racing line coloring but with stronger visual
-    this.ctx.globalAlpha = 0.3;
+    const ctx = this.overlayCtx || this.ctx;
+    ctx.globalAlpha = 0.3;
     for (let i = 0; i < points.length - 1; i++) {
       const p1 = points[i];
       const p2 = points[i + 1];
       const p3 = points[Math.min(i + 2, points.length - 1)];
-      
+
       const radius = radiusOfCurvature(p1, p2, p3);
       const speed = kart.maxCornerSpeed(radius);
       const maxSpeed = 25; // ~90 km/h
       const speedRatio = Math.min(1, speed / maxSpeed);
-      
+
       const hue = speedRatio * 120;
-      this.ctx.fillStyle = `hsl(${hue}, 100%, 50%)`;
-      
-      this.ctx.beginPath();
-      this.ctx.arc(p2.x, p2.y, 5, 0, Math.PI * 2);
-      this.ctx.fill();
+      ctx.fillStyle = `hsl(${hue}, 100%, 50%)`;
+
+      ctx.beginPath();
+      ctx.arc(p2.x, p2.y, 5, 0, Math.PI * 2);
+      ctx.fill();
     }
-    this.ctx.globalAlpha = 1;
+    ctx.globalAlpha = 1;
   }
   
   /**

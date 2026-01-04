@@ -211,52 +211,24 @@ class ImageProcessor {
   perpendicularDistance(point, lineStart, lineEnd) {
     const dx = lineEnd.x - lineStart.x;
     const dy = lineEnd.y - lineStart.y;
-    
-    if (dx === 0 && dy === 0) {
-      return Math.sqrt(
-        (point.x - lineStart.x) ** 2 + 
-        (point.y - lineStart.y) ** 2
-      );
-    }
-    
-    const t = Math.max(0, Math.min(1,
-      ((point.x - lineStart.x) * dx + (point.y - lineStart.y) * dy) /
-      (dx * dx + dy * dy)
-    ));
-    
-    const projX = lineStart.x + t * dx;
-    const projY = lineStart.y + t * dy;
-    
-    return Math.sqrt(
-      (point.x - projX) ** 2 + 
-      (point.y - projY) ** 2
-    );
-  }
 
-  /**
-   * Calculate perpendicular distance from point to line
-   */
-  perpendicularDistance(point, lineStart, lineEnd) {
-    const dx = lineEnd.x - lineStart.x;
-    const dy = lineEnd.y - lineStart.y;
-    
     if (dx === 0 && dy === 0) {
       return Math.sqrt(
-        (point.x - lineStart.x) ** 2 + 
+        (point.x - lineStart.x) ** 2 +
         (point.y - lineStart.y) ** 2
       );
     }
-    
+
     const t = Math.max(0, Math.min(1,
       ((point.x - lineStart.x) * dx + (point.y - lineStart.y) * dy) /
       (dx * dx + dy * dy)
     ));
-    
+
     const projX = lineStart.x + t * dx;
     const projY = lineStart.y + t * dy;
-    
+
     return Math.sqrt(
-      (point.x - projX) ** 2 + 
+      (point.x - projX) ** 2 +
       (point.y - projY) ** 2
     );
   }

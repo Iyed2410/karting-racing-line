@@ -1,0 +1,36 @@
+{
+  "env": {
+    "browser": true,
+    "es2021": true,
+    "node": true,
+    "jest": true
+  },
+  "globals": {
+    "CanvasManager": "readonly",
+    "kart": "readonly",
+    "ImageProcessor": "readonly",
+    "WebGLRenderer": "readonly",
+    "initialHeuristicLine": "readonly",
+    "smoothLine": "readonly",
+    "optimizeLine": "readonly",
+    "validateRacingLine": "readonly",
+    "trackSelfIntersects": "readonly",
+    "trackLength": "readonly",
+    "distance": "readonly",
+    "radiusOfCurvature": "readonly",
+    "interpolate": "readonly",
+    "findApexes": "readonly",
+    "pointInPolygon": "readonly",
+    "calculateLapTime": "readonly",
+    "importScripts": "readonly"
+  },
+  "extends": "eslint:recommended",
+  "parserOptions": {
+    "ecmaVersion": 12,
+    "sourceType": "module"
+  },
+  "rules": {
+    "no-unused-vars": ["warn"],
+    "no-console": "off"
+  }
+}

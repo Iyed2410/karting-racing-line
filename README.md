@@ -1,6 +1,45 @@
 # Karting Racing Line Optimizer
 
-A fully-functional web application for karting enthusiasts to design tracks and optimize racing lines using advanced physics calculations and iterative optimization algorithms.
+Interactive karting racing-line optimizer and visualizer.
+
+Quick start
+----------
+
+- Open `index.html` in a browser (or serve the folder with a static server).
+- Draw a track on the canvas, tune physics sliders, then click "Generate Racing Line".
+
+Run locally (recommended for development)
+---------------------------------------
+
+Install dev tools and run tests:
+
+```bash
+npm install
+npm test
+```
+
+Contributing
+------------
+
+- Add new example tracks under `assets/example_tracks/` (JSON centerline format).
+- Keep UI changes in `index.html` and `script.js` and helper logic in `utils/`.
+- Run `npm run lint` before pushing changes.
+
+Track JSON schema
+-----------------
+
+Tracks are simple JSON objects with a `trackPoints` array of `{x,y}` coordinates (pixels matching canvas space). Example:
+
+```json
+{
+  "trackPoints": [ {"x":10,"y":20}, {"x":50,"y":100}, ... ]
+}
+```
+
+Hosting demo
+------------
+
+This project can be hosted on GitHub Pages. Build steps are not required — push the repository and enable Pages in repo settings, serving from `main` branch's root.
 
 **Live Performance**: ~60 FPS on mobile devices | Zero external framework dependencies | Fully offline
 

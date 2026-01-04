@@ -1,185 +1,101 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Karting Racing Line Optimizer</title>
-  <link rel="stylesheet" href="style.css">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Karting Racing Line — Home</title>
+  <link rel="stylesheet" href="index.css">
+  <style> /* small fix so home button links to track page */
+    .btn{cursor:pointer}
+  </style>
 </head>
 <body>
-  <div class="container">
-    <header class="header">
-      <h1>🏎️ Karting Racing Line Optimizer</h1>
-      <p class="subtitle">Draw a track and optimize your racing line</p>
-    </header>
+  <header class="hero">
+    <div class="hero-inner">
+      <h1>Karting Racing Line</h1>
+      <p class="tag">Visualize, optimize and simulate the fastest smooth racing line for kart tracks — browser-based, lightweight, and interactive.</p>
+      <div class="hero-cta">
+        <a class="btn primary" href="track.html">Open App →</a>
+        <a class="btn ghost" href="README.md">Read Docs</a>
+      </div>
+    </div>
+    <svg class="hero-deco" viewBox="0 0 800 200" preserveAspectRatio="none" aria-hidden="true">
+      <defs>
+        <linearGradient id="g" x1="0" x2="1">
+          <stop offset="0" stop-color="#00c6ff"/>
+          <stop offset="1" stop-color="#0072ff"/>
+        </linearGradient>
+      </defs>
+      <path d="M0,120 C150,200 350,20 500,120 C650,220 800,60 1000,120 L1000,0 L0,0 Z" fill="url(#g)" opacity="0.12"></path>
+    </svg>
+  </header>
 
-    <main class="content">
-      <!-- Canvas Section -->
-      <section class="canvas-section">
-        <div class="canvas-wrapper">
-          <canvas id="trackCanvas"></canvas>
-          <div class="canvas-info">
-            <p>Left click: Draw | Right click/2-finger: Pan | Wheel: Zoom</p>
-          </div>
-        </div>
+  <main class="container">
+    <section class="cards">
+      <article class="card">
+        <h3>What it does</h3>
+        <p>Draw a centerline, tune kart physics, and generate an optimized racing line that balances speed and smoothness while keeping the kart on track.</p>
+      </article>
 
-        <!-- Track Status -->
-        <div class="status-box">
-          <div class="status-item">
-            <span class="status-label">Points:</span>
-            <span id="pointCount" class="status-value">0</span>
-          </div>
-          <div class="status-item">
-            <span class="status-label">Track Length:</span>
-            <span id="trackLen" class="status-value">0m</span>
-          </div>
-          <div class="status-item">
-            <span class="status-label">Lap Time:</span>
-            <span id="lapTime" class="status-value">--</span>
-          </div>
-        </div>
-      </section>
+      <article class="card">
+        <h3>Key Features</h3>
+        <ul>
+          <li>Interactive track editor — draw, edit, undo/redo</li>
+          <li>Simulated-annealing optimizer with dynamics-aware scoring</li>
+          <li>Speed heatmap, apex detection, and playback simulation</li>
+          <li>Optional WebGL renderer for smoother visuals on large tracks</li>
+          <li>High-DPI canvas support and responsive UI</li>
+        </ul>
+      </article>
 
-      <!-- Control Panel -->
-      <section class="control-panel">
-        <!-- Track Controls -->
-        <div class="control-group">
-          <h3>Track Controls</h3>
-          
-          <button id="clearBtn" class="btn btn-danger">Clear Track</button>
-          <button id="undoBtn" class="btn">↶ Undo</button>
-          <button id="redoBtn" class="btn">↷ Redo</button>
-          
-          <div class="control-divider"></div>
-          
-          <label for="loadTrackBtn" class="btn" style="margin-bottom: var(--spacing-sm); cursor: pointer; display: block;">
-            📂 Load Track
-            <input type="file" id="loadTrackBtn" accept=".json" style="display:none;">
-          </label>
-          
-          <label for="uploadImageBtn" class="btn" style="margin-bottom: var(--spacing-sm); cursor: pointer; display: block; background: var(--accent-color);">
-            🖼️ Import Image
-            <input type="file" id="uploadImageBtn" accept="image/*" style="display:none;">
-          </label>
-          
-          <button id="saveTrackBtn" class="btn">💾 Save Track</button>
-        </div>
+      <article class="card">
+        <h3>How to Use</h3>
+        <ol>
+          <li>Open the app and draw the track on the canvas.</li>
+          <li>Adjust grip / acceleration / braking to match your kart.</li>
+          <li>Click <strong>Generate Racing Line</strong> to optimize.</li>
+          <li>Toggle <em>Speed Heatmap</em> or <em>Apexes</em> to inspect the line.</li>
+          <li>Use playback to visualize the lap and export the track as JSON.</li>
+        </ol>
+      </article>
 
-        <!-- Physics Controls -->
-        <div class="control-group">
-          <h3>Physics Parameters</h3>
-          
-          <div class="slider-group">
-            <label for="gripSlider">
-              Grip Coefficient: <span id="gripValue">1.0</span>
-            </label>
-            <input 
-              type="range" 
-              id="gripSlider" 
-              min="0.6" 
-              max="1.5" 
-              step="0.05" 
-              value="1.0"
-              class="slider"
-            >
-            <small>Low grip (rain) ← → High grip (slicks)</small>
-          </div>
+      <article class="card">
+        <h3>For Developers</h3>
+        <p>The repo includes unit tests, linting, and a minimal WebGL renderer. See <a href="TECHNICAL.md">TECHNICAL.md</a> for design notes and <a href="QUICKSTART.md">QUICKSTART</a> for local setup.</p>
+      </article>
+    </section>
 
-          <div class="slider-group">
-            <label for="trackWidthSlider">
-              Track Width: <span id="trackWidthValue">6</span>m
-            </label>
-            <input 
-              type="range" 
-              id="trackWidthSlider" 
-              min="3" 
-              max="12" 
-              step="0.5" 
-              value="6"
-              class="slider"
-            >
-          </div>
+    <section class="wide">
+      <h2>Design Goals</h2>
+      <p>Produce a realistic, drivable racing line that minimizes lap time while remaining smooth and physically plausible. The optimizer considers lateral grip, acceleration/braking limits, and penalizes excessive curvature.</p>
+      <div class="actions">
+        <a class="btn" href="track.html">Try the Optimizer</a>
+        <a class="btn" href="TESTING.md">Tests & Benchmarks</a>
+      </div>
+    </section>
 
-          <div class="slider-group">
-            <label for="accelSlider">
-              Max Acceleration: <span id="accelValue">8</span>m/s²
-            </label>
-            <input 
-              type="range" 
-              id="accelSlider" 
-              min="5" 
-              max="15" 
-              step="0.5" 
-              value="8"
-              class="slider"
-            >
-          </div>
+    <section class="footer-cards">
+      <div class="small-card">
+        <h4>Shortcuts</h4>
+        <ul>
+          <li><strong>Space</strong> — Play/pause simulation</li>
+          <li><strong>+</strong>/<strong>-</strong> — Zoom</li>
+          <li><strong>F</strong> — Fit view</li>
+        </ul>
+      </div>
+      <div class="small-card">
+        <h4>Contribute</h4>
+        <p>Fork the repo, run <code>npm install</code>, then `npm test`. Contributions welcome — open an issue or PR on GitHub.</p>
+      </div>
+      <div class="small-card">
+        <h4>Contact</h4>
+        <p>See the project's README for author and licensing details.</p>
+      </div>
+    </section>
+  </main>
 
-          <div class="slider-group">
-            <label for="brakeSlider">
-              Max Braking: <span id="brakeValue">10</span>m/s²
-            </label>
-            <input 
-              type="range" 
-              id="brakeSlider" 
-              min="5" 
-              max="15" 
-              step="0.5" 
-              value="10"
-              class="slider"
-            >
-          </div>
-        </div>
-
-        <!-- Racing Line Controls -->
-        <div class="control-group">
-          <h3>Racing Line</h3>
-          
-          <button id="optimizeBtn" class="btn btn-primary">
-            🎯 Generate Racing Line
-          </button>
-          
-          <div class="checkbox-group">
-            <label>
-              <input type="checkbox" id="showApexes">
-              Show Apexes
-            </label>
-            <label>
-              <input type="checkbox" id="showSpeedHeat">
-              Speed Heatmap
-            </label>
-          </div>
-
-          <div id="optimizeInfo" class="info-box" style="display: none;">
-            <p id="optimizeText"></p>
-          </div>
-        </div>
-
-        <!-- Info Panel -->
-        <div class="control-group info-panel">
-          <h3>ℹ️ How to Use</h3>
-          <ul>
-            <li><strong>Draw track:</strong> Click on canvas to create centerline</li>
-            <li><strong>Zoom:</strong> Scroll wheel or pinch gesture</li>
-            <li><strong>Pan:</strong> Right-click drag or 2-finger drag</li>
-            <li><strong>Optimize:</strong> Adjust physics, then click "Generate Racing Line"</li>
-            <li><strong>View speeds:</strong> Enable "Speed Heatmap" for color gradient</li>
-          </ul>
-        </div>
-      </section>
-    </main>
-
-    <footer class="footer">
-      <p>Karting Racing Line Optimizer v1.0 | Mobile-friendly, zero external dependencies</p>
-    </footer>
-  </div>
-
-  <!-- Scripts in order of dependency -->
-  <script src="utils/geometry.js"></script>
-  <script src="utils/physics.js"></script>
-  <script src="utils/imageProcessor.js"></script>
-  <script src="utils/racingLine.js"></script>
-  <script src="utils/uiHelpers.js"></script>
-  <script src="script.js"></script>
+  <footer class="site-footer">
+    <p>Made with ❤️ for track lovers — lightweight, offline-capable, and open.</p>
+  </footer>
 </body>
 </html>

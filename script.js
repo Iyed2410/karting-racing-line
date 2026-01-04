@@ -11,6 +11,10 @@ let trackData = {
   boundaries: null,
   segments: []
 };
+// Simulation controller
+let raceSimulator;
+// Units: 'metric' (meters, km/h) or 'imperial' (feet, mph)
+let units = 'metric';
 
 // Initialize application when DOM is ready
 document.addEventListener('DOMContentLoaded', initializeApp);
@@ -21,7 +25,10 @@ document.addEventListener('DOMContentLoaded', initializeApp);
 function initializeApp() {
   // Initialize canvas manager
   const canvas = document.getElementById('trackCanvas');
-  canvasManager = new CanvasManager(canvas);
+  const overlay = document.getElementById('overlayCanvas');
+  canvasManager = new CanvasManager(canvas, overlay);
+  // Simulation helper
+  raceSimulator = new RaceSimulator(canvasManager);
   
   // Set up event listeners for all controls
   setupControlListeners();
@@ -110,7 +117,7 @@ function setupControlListeners() {
   if (trackWidthSlider) {
     trackWidthSlider.addEventListener('input', (e) => {
       const width = parseFloat(e.target.value);
-      document.getElementById('trackWidthValue').textContent = width.toFixed(1);
+      document.getElementById('trackWidthValue').textContent = units === 'metric' ? width.toFixed(1) : (width * 3.28084).toFixed(1);
       trackData.trackWidth = width;
     });
   }
@@ -184,6 +191,116 @@ function setupControlListeners() {
     }
   });
 
+  // Simulation / playback controls
+  const playPauseBtn = document.getElementById('playPauseBtn');
+  const stepBtn = document.getElementById('stepBtn');
+  const playbackSpeed = document.getElementById('playbackSpeed');
+  const playbackSpeedVal = document.getElementById('playbackSpeedVal');
+  const zoomInBtn = document.getElementById('zoomInBtn');
+  const zoomOutBtn = document.getElementById('zoomOutBtn');
+  const fitBtn = document.getElementById('fitBtn');
+
+  if (playbackSpeed && playbackSpeedVal) {
+    playbackSpeed.addEventListener('input', (e) => {
+      const v = parseFloat(e.target.value);
+      playbackSpeedVal.textContent = v.toFixed(2) + 'x';
+      if (raceSimulator) raceSimulator.setSpeedMultiplier(v);
+    });
+  }
+
+  if (playPauseBtn) {
+    playPauseBtn.addEventListener('click', () => {
+      if (!raceSimulator) return;
+      if (raceSimulator.isPlaying) {
+        raceSimulator.pause();
+        playPauseBtn.textContent = '▶️ Play';
+      } else {
+        raceSimulator.start();
+        playPauseBtn.textContent = '⏸️ Pause';
+      }
+    });
+  }
+
+  if (stepBtn) {
+    stepBtn.addEventListener('click', () => {
+      if (!raceSimulator) return;
+      raceSimulator.stepOnce();
+    });
+  }
+
+  if (zoomInBtn) {
+    zoomInBtn.addEventListener('click', () => {
+      canvasManager.scale = Math.min(5, canvasManager.scale * 1.2);
+      canvasManager.render();
+    });
+  }
+  if (zoomOutBtn) {
+    zoomOutBtn.addEventListener('click', () => {
+      canvasManager.scale = Math.max(0.1, canvasManager.scale * 0.8);
+      canvasManager.render();
+    });
+  }
+  if (fitBtn) {
+    fitBtn.addEventListener('click', () => {
+      // reset pan/scale to fit track roughly
+      canvasManager.scale = 1;
+      canvasManager.panX = 0;
+      canvasManager.panY = 0;
+      canvasManager.render();
+    });
+  }
+
+  // WebGL / edit / unit controls
+  const useWebGL = document.getElementById('useWebGL');
+  const editMode = document.getElementById('editMode');
+  const deletePointBtn = document.getElementById('deletePointBtn');
+  const unitToggleBtn = document.getElementById('unitToggleBtn');
+
+  if (useWebGL) {
+    useWebGL.addEventListener('change', (e) => {
+      canvasManager.useWebGL = e.target.checked;
+      canvasManager.setupHighDPI();
+      canvasManager.render();
+    });
+  }
+
+  if (editMode) {
+    editMode.addEventListener('change', (e) => {
+      canvasManager.setEditMode(!!e.target.checked);
+    });
+  }
+
+  if (deletePointBtn) {
+    deletePointBtn.addEventListener('click', () => {
+      // delete nearest point to center or last selected
+      if (!canvasManager) return;
+      // if draggingPoint available delete it
+      if (canvasManager.draggingPoint != null && canvasManager.draggingPoint >= 0) {
+        canvasManager.trackPoints.splice(canvasManager.draggingPoint, 1);
+        canvasManager.draggingPoint = null;
+        canvasManager.saveToHistory();
+        canvasManager.render();
+        updateUI();
+        return;
+      }
+      // otherwise remove last point
+      if (canvasManager.trackPoints.length > 0) {
+        canvasManager.trackPoints.pop();
+        canvasManager.saveToHistory();
+        canvasManager.render();
+        updateUI();
+      }
+    });
+  }
+
+  if (unitToggleBtn) {
+    unitToggleBtn.addEventListener('click', () => {
+      units = units === 'metric' ? 'imperial' : 'metric';
+      unitToggleBtn.textContent = 'Units: ' + (units === 'metric' ? 'Metric' : 'Imperial');
+      updateUI();
+    });
+  }
+
   } catch (error) {
     console.error('Error setting up controls:', error);
   }
@@ -220,28 +337,72 @@ function generateRacingLine() {
     const initialLine = initialHeuristicLine(canvasManager.trackPoints);
     infoText.textContent = 'Optimizing racing line...';
     
-    // Step 4: Optimize line
-    const optimizedLine = optimizeLine(initialLine, trackData, 30);
-    infoText.textContent = 'Smoothing racing line...';
-    
-    // Step 5: Smooth the line
-    canvasManager.racingLine = smoothLine(optimizedLine, 2);
-    
-    // Validate result
-    const validation = validateRacingLine(canvasManager.racingLine, trackData);
-    if (!validation.valid) {
-      console.warn('Racing line validation warnings:', validation.errors);
-    }
-    
-    infoText.textContent = '✓ Racing line generated successfully!';
-    setTimeout(() => {
-      infoBox.style.display = 'none';
-    }, 2000);
-    
-    canvasManager.render();
-    updateUI();
-    
-    console.log('✓ Racing line generated');
+      // Step 4: Optimize line (use Web Worker if available)
+      infoText.textContent = 'Optimizing racing line... (this may take a moment)';
+      let optimizedLine = null;
+      const iterations = 30;
+
+      const runOptimizeSync = () => {
+        optimizedLine = optimizeLine(initialLine, trackData, iterations);
+        proceedAfterOptimize(optimizedLine);
+      };
+
+      const proceedAfterOptimize = (optimized) => {
+        infoText.textContent = 'Smoothing racing line...';
+
+        // Step 5: Smooth the line
+        canvasManager.racingLine = smoothLine(optimized, 2);
+
+        // Update simulator profile
+        if (raceSimulator) {
+          raceSimulator.updateProfile();
+          raceSimulator.currentDist = 0;
+        }
+
+        // Validate result
+        const validation = validateRacingLine(canvasManager.racingLine, trackData);
+        if (!validation.valid) {
+          console.warn('Racing line validation warnings:', validation.errors);
+        }
+
+        infoText.textContent = '✓ Racing line generated successfully!';
+        setTimeout(() => {
+          infoBox.style.display = 'none';
+        }, 2000);
+
+        canvasManager.render();
+        updateUI();
+        console.log('✓ Racing line generated');
+      };
+
+      // Try worker
+      if (window.Worker) {
+        try {
+          const worker = new Worker('utils/optimizeWorker.js');
+          worker.onmessage = (ev) => {
+            const data = ev.data;
+            if (data && data.success) {
+              proceedAfterOptimize(data.optimized);
+            } else {
+              console.warn('Worker optimize failed, falling back:', data && data.error);
+              runOptimizeSync();
+            }
+            worker.terminate();
+          };
+          worker.onerror = (err) => {
+            console.error('Worker error:', err);
+            worker.terminate();
+            runOptimizeSync();
+          };
+          worker.postMessage({ action: 'optimize', initialLine, trackData, iterations });
+        } catch (err) {
+          console.warn('Could not start worker, optimizing synchronously:', err);
+          runOptimizeSync();
+        }
+        return; // worker will call proceedAfterOptimize
+      } else {
+        runOptimizeSync();
+      }
   } catch (error) {
     console.error('Error generating racing line:', error);
     infoText.textContent = '✗ Error: ' + error.message;
@@ -352,11 +513,17 @@ function processTrackImage(img) {
 function updateUI() {
   // Update point count
   document.getElementById('pointCount').textContent = canvasManager.trackPoints.length;
+  // Update track width display according to units
+  const twEl = document.getElementById('trackWidthValue');
+  if (twEl) {
+    const w = trackData.trackWidth || parseFloat(document.getElementById('trackWidthSlider').value || 6);
+    twEl.textContent = units === 'metric' ? w.toFixed(1) : (w * 3.28084).toFixed(1);
+  }
   
   // Update track length
   if (canvasManager.trackPoints.length > 1) {
     trackData.length = trackLength(canvasManager.trackPoints);
-    document.getElementById('trackLen').textContent = trackData.length.toFixed(1) + 'm';
+    document.getElementById('trackLen').textContent = formatDistance(trackData.length);
   } else {
     document.getElementById('trackLen').textContent = '0m';
   }
@@ -369,6 +536,13 @@ function updateUI() {
   } else {
     document.getElementById('lapTime').textContent = '--';
   }
+}
+
+function formatDistance(meters) {
+  if (units === 'metric') return meters.toFixed(1) + ' m';
+  // imperial - feet
+  const feet = meters * 3.28084;
+  return feet.toFixed(1) + ' ft';
 }
 
 /**
@@ -431,6 +605,165 @@ function showMessage(text, type = 'info') {
 })();
 
 /**
+ * Simple race simulator that animates a car along the generated racing line
+ */
+class RaceSimulator {
+  constructor(canvasManager) {
+    this.cm = canvasManager;
+    this.isPlaying = false;
+    this.speedMultiplier = 1;
+    this.currentDist = 0; // meters along line
+    this.lastTime = null;
+    this.totalLength = 0;
+    this.cumulative = [];
+  }
+
+  updateProfile() {
+    const line = this.cm.racingLine;
+    if (!line || line.length < 2) {
+      this.totalLength = 0;
+      this.cumulative = [];
+      return;
+    }
+
+    // compute cumulative distances
+    this.cumulative = [0];
+    let acc = 0;
+    for (let i = 1; i < line.length; i++) {
+      const a = line[i - 1];
+      const b = line[i];
+      const d = Math.hypot(b.x - a.x, b.y - a.y);
+      acc += d;
+      this.cumulative.push(acc);
+    }
+    this.totalLength = acc;
+    if (this.currentDist > this.totalLength) this.currentDist = 0;
+  }
+
+  setSpeedMultiplier(m) {
+    this.speedMultiplier = m;
+  }
+
+  start() {
+    if (this.isPlaying) return;
+    this.updateProfile();
+    if (this.totalLength <= 0) return;
+    this.isPlaying = true;
+    this.lastTime = performance.now();
+    requestAnimationFrame(this.frame.bind(this));
+  }
+
+  pause() {
+    this.isPlaying = false;
+    this.lastTime = null;
+  }
+
+  stepOnce() {
+    // advance small fixed time step
+    this.updateProfile();
+    if (this.totalLength <= 0) return;
+    const dt = 0.2; // seconds
+    this.advanceByTime(dt);
+    this.drawCurrent();
+  }
+
+  frame(ts) {
+    if (!this.isPlaying) return;
+    const dt = (ts - this.lastTime) / 1000;
+    this.lastTime = ts;
+    this.advanceByTime(dt);
+    this.drawCurrent();
+    requestAnimationFrame(this.frame.bind(this));
+  }
+
+  advanceByTime(dt) {
+    if (!this.cm.racingLine || this.cm.racingLine.length < 2) return;
+    // estimate speed at current point using curvature-based corner speed
+    const pos = this.getPositionData(this.currentDist);
+    const radius = pos.radius || Infinity;
+    const baseSpeed = kart.maxCornerSpeed(radius); // m/s
+    const travel = baseSpeed * dt * this.speedMultiplier;
+    this.currentDist += travel;
+    // loop
+    if (this.currentDist > this.totalLength) this.currentDist -= this.totalLength;
+  }
+
+  getPositionData(dist) {
+    const line = this.cm.racingLine;
+    if (!line || line.length < 2) return { x: 0, y: 0, idx: 0, t: 0, radius: Infinity };
+    // clamp
+    if (dist <= 0) return { x: line[0].x, y: line[0].y, idx: 0, t: 0, radius: Infinity };
+    if (dist >= this.totalLength) {
+      const last = line[line.length - 1];
+      return { x: last.x, y: last.y, idx: line.length - 1, t: 0, radius: Infinity };
+    }
+
+    // find segment
+    let i = 1;
+    while (i < this.cumulative.length && this.cumulative[i] < dist) i++;
+    const a = line[i - 1];
+    const b = line[i];
+    const segStart = this.cumulative[i - 1];
+    const segLen = this.cumulative[i] - segStart || 1e-6;
+    const t = (dist - segStart) / segLen;
+    const x = a.x + (b.x - a.x) * t;
+    const y = a.y + (b.y - a.y) * t;
+
+    // estimate radius using neighbors
+    const p1 = line[Math.max(0, i - 2)];
+    const p2 = a;
+    const p3 = b;
+    const radius = radiusOfCurvature(p1 || p2, p2, p3 || p2);
+
+    return { x, y, idx: i - 1, t, radius };
+  }
+
+  drawCurrent() {
+    // render base canvas then overlay car
+    this.cm.render();
+
+    const pos = this.getPositionData(this.currentDist);
+    const ctx = this.cm.overlayCtx || this.cm.ctx;
+
+    ctx.save();
+    // account for pan/zoom transform already used in render
+    ctx.translate(this.cm.panX, this.cm.panY);
+    ctx.scale(this.cm.scale, this.cm.scale);
+
+    // compute heading from local segment
+    const line = this.cm.racingLine;
+    const a = line[Math.max(0, pos.idx)];
+    const b = line[Math.min(line.length - 1, pos.idx + 1)];
+    const angle = Math.atan2(b.y - a.y, b.x - a.x);
+
+    // draw car as triangle
+    ctx.translate(pos.x, pos.y);
+    ctx.rotate(angle);
+    ctx.fillStyle = '#ff0000';
+    ctx.beginPath();
+    ctx.moveTo(8, 0);
+    ctx.lineTo(-6, 4);
+    ctx.lineTo(-6, -4);
+    ctx.closePath();
+    ctx.fill();
+    // draw speed near the car
+    ctx.fillStyle = '#000000';
+    ctx.font = '12px sans-serif';
+    ctx.rotate(-angle);
+    const baseSpeed = kart.maxCornerSpeed(pos.radius || Infinity); // m/s
+    let speedText = '';
+    if (units === 'metric') {
+      speedText = (baseSpeed * 3.6).toFixed(1) + ' km/h';
+    } else {
+      speedText = (baseSpeed * 2.23694).toFixed(1) + ' mph';
+    }
+    ctx.fillText(speedText, 10, -8);
+
+    ctx.restore();
+  }
+}
+
+/**
  * Mobile orientation change handler
  */
 window.addEventListener('orientationchange', () => {
@@ -446,6 +779,36 @@ window.addEventListener('orientationchange', () => {
 window.addEventListener('resize', () => {
   canvasManager.setupHighDPI();
   canvasManager.render();
+});
+
+// Keyboard shortcuts: Space = play/pause, +/- zoom, f = fit
+window.addEventListener('keydown', (e) => {
+  if (!canvasManager) return;
+  if (e.code === 'Space') {
+    e.preventDefault();
+    if (raceSimulator) {
+      if (raceSimulator.isPlaying) {
+        raceSimulator.pause();
+        const btn = document.getElementById('playPauseBtn');
+        if (btn) btn.textContent = '▶️ Play';
+      } else {
+        raceSimulator.start();
+        const btn = document.getElementById('playPauseBtn');
+        if (btn) btn.textContent = '⏸️ Pause';
+      }
+    }
+  } else if (e.key === '+') {
+    canvasManager.scale = Math.min(5, canvasManager.scale * 1.2);
+    canvasManager.render();
+  } else if (e.key === '-') {
+    canvasManager.scale = Math.max(0.1, canvasManager.scale * 0.8);
+    canvasManager.render();
+  } else if (e.key.toLowerCase() === 'f') {
+    canvasManager.scale = 1;
+    canvasManager.panX = 0;
+    canvasManager.panY = 0;
+    canvasManager.render();
+  }
 });
 
 // Export functions for testing
