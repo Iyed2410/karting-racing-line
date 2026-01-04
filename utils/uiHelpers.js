@@ -21,9 +21,12 @@ class CanvasManager {
     this.showApexes = false;
     this.showSpeedHeat = false;
     
-    // History for undo/redo
-    this.history = [];
-    this.historyIndex = -1;
+    // History for undo/redo - initialize with empty state
+    this.history = [{
+      trackPoints: [],
+      racingLine: null
+    }];
+    this.historyIndex = 0;
     
     this.setupEventListeners();
   }

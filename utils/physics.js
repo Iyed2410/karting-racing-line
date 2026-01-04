@@ -46,14 +46,19 @@ class KartPhysics {
   
   /**
    * Calculate required braking distance from speed v1 to v2
-   * Using: distance = (v2² - v1²) / (2 * a)
+   * Using: distance = (v1² - v2²) / (2 * a)
+   * Note: braking reduces speed, so v1 > v2
    * 
    * @param {number} v1 - Initial speed m/s
    * @param {number} v2 - Final speed m/s
    * @returns {number} Required braking distance in meters
    */
   brakingDistance(v1, v2) {
-    const dv2 = v2 * v2 - v1 * v1;
+    // For braking, v1 should be greater than v2
+    if (v1 < v2) [v1, v2] = [v2, v1]; // Swap if needed
+    
+    // distance = (v1² - v2²) / (2 * a)
+    const dv2 = v1 * v1 - v2 * v2;
     const distance = dv2 / (2 * this.maxBraking);
     return Math.max(0, distance);
   }
