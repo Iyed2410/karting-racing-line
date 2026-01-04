@@ -1,0 +1,20 @@
+{
+  "name": "Classic Oval Track",
+  "description": "Simple oval-shaped circuit suitable for beginners",
+  "trackPoints": [
+    {"x": 100, "y": 100},
+    {"x": 200, "y": 80},
+    {"x": 300, "y": 100},
+    {"x": 350, "y": 150},
+    {"x": 380, "y": 250},
+    {"x": 350, "y": 350},
+    {"x": 300, "y": 400},
+    {"x": 200, "y": 420},
+    {"x": 100, "y": 400},
+    {"x": 50, "y": 350},
+    {"x": 20, "y": 250},
+    {"x": 50, "y": 150}
+  ],
+  "racingLine": null,
+  "timestamp": "2026-01-04T00:00:00Z"
+}

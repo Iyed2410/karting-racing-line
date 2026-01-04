@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Karting Racing Line Optimizer</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="header">
+      <h1>🏎️ Karting Racing Line Optimizer</h1>
+      <p class="subtitle">Draw a track and optimize your racing line</p>
+    </header>
+
+    <main class="content">
+      <!-- Canvas Section -->
+      <section class="canvas-section">
+        <div class="canvas-wrapper">
+          <canvas id="trackCanvas"></canvas>
+          <div class="canvas-info">
+            <p>Left click: Draw | Right click/2-finger: Pan | Wheel: Zoom</p>
+          </div>
+        </div>
+
+        <!-- Track Status -->
+        <div class="status-box">
+          <div class="status-item">
+            <span class="status-label">Points:</span>
+            <span id="pointCount" class="status-value">0</span>
+          </div>
+          <div class="status-item">
+            <span class="status-label">Track Length:</span>
+            <span id="trackLen" class="status-value">0m</span>
+          </div>
+          <div class="status-item">
+            <span class="status-label">Lap Time:</span>
+            <span id="lapTime" class="status-value">--</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Control Panel -->
+      <section class="control-panel">
+        <!-- Track Controls -->
+        <div class="control-group">
+          <h3>Track Controls</h3>
+          
+          <button id="clearBtn" class="btn btn-danger">Clear Track</button>
+          <button id="undoBtn" class="btn">↶ Undo</button>
+          <button id="redoBtn" class="btn">↷ Redo</button>
+          
+          <div class="control-divider"></div>
+          
+          <label for="loadTrackBtn" class="btn" style="margin-bottom: var(--spacing-sm); cursor: pointer; display: block;">
+            📂 Load Track
+            <input type="file" id="loadTrackBtn" accept=".json" style="display:none;">
+          </label>
+          
+          <label for="uploadImageBtn" class="btn" style="margin-bottom: var(--spacing-sm); cursor: pointer; display: block; background: var(--accent-color);">
+            🖼️ Import Image
+            <input type="file" id="uploadImageBtn" accept="image/*" style="display:none;">
+          </label>
+          
+          <button id="saveTrackBtn" class="btn">💾 Save Track</button>
+        </div>
+
+        <!-- Physics Controls -->
+        <div class="control-group">
+          <h3>Physics Parameters</h3>
+          
+          <div class="slider-group">
+            <label for="gripSlider">
+              Grip Coefficient: <span id="gripValue">1.0</span>
+            </label>
+            <input 
+              type="range" 
+              id="gripSlider" 
+              min="0.6" 
+              max="1.5" 
+              step="0.05" 
+              value="1.0"
+              class="slider"
+            >
+            <small>Low grip (rain) ← → High grip (slicks)</small>
+          </div>
+
+          <div class="slider-group">
+            <label for="trackWidthSlider">
+              Track Width: <span id="trackWidthValue">6</span>m
+            </label>
+            <input 
+              type="range" 
+              id="trackWidthSlider" 
+              min="3" 
+              max="12" 
+              step="0.5" 
+              value="6"
+              class="slider"
+            >
+          </div>
+
+          <div class="slider-group">
+            <label for="accelSlider">
+              Max Acceleration: <span id="accelValue">8</span>m/s²
+            </label>
+            <input 
+              type="range" 
+              id="accelSlider" 
+              min="5" 
+              max="15" 
+              step="0.5" 
+              value="8"
+              class="slider"
+            >
+          </div>
+
+          <div class="slider-group">
+            <label for="brakeSlider">
+              Max Braking: <span id="brakeValue">10</span>m/s²
+            </label>
+            <input 
+              type="range" 
+              id="brakeSlider" 
+              min="5" 
+              max="15" 
+              step="0.5" 
+              value="10"
+              class="slider"
+            >
+          </div>
+        </div>
+
+        <!-- Racing Line Controls -->
+        <div class="control-group">
+          <h3>Racing Line</h3>
+          
+          <button id="optimizeBtn" class="btn btn-primary">
+            🎯 Generate Racing Line
+          </button>
+          
+          <div class="checkbox-group">
+            <label>
+              <input type="checkbox" id="showApexes">
+              Show Apexes
+            </label>
+            <label>
+              <input type="checkbox" id="showSpeedHeat">
+              Speed Heatmap
+            </label>
+          </div>
+
+          <div id="optimizeInfo" class="info-box" style="display: none;">
+            <p id="optimizeText"></p>
+          </div>
+        </div>
+
+        <!-- Info Panel -->
+        <div class="control-group info-panel">
+          <h3>ℹ️ How to Use</h3>
+          <ul>
+            <li><strong>Draw track:</strong> Click on canvas to create centerline</li>
+            <li><strong>Zoom:</strong> Scroll wheel or pinch gesture</li>
+            <li><strong>Pan:</strong> Right-click drag or 2-finger drag</li>
+            <li><strong>Optimize:</strong> Adjust physics, then click "Generate Racing Line"</li>
+            <li><strong>View speeds:</strong> Enable "Speed Heatmap" for color gradient</li>
+          </ul>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <p>Karting Racing Line Optimizer v1.0 | Mobile-friendly, zero external dependencies</p>
+    </footer>
+  </div>
+
+  <!-- Scripts in order of dependency -->
+  <script src="utils/geometry.js"></script>
+  <script src="utils/physics.js"></script>
+  <script src="utils/imageProcessor.js"></script>
+  <script src="utils/racingLine.js"></script>
+  <script src="utils/uiHelpers.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>

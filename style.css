@@ -1,0 +1,502 @@
+/**
+ * Karting Racing Line Optimizer - Responsive Mobile-First Styling
+ * Modern design with touch-friendly controls
+ */
+
+:root {
+  --primary-color: #ff6600;
+  --secondary-color: #333333;
+  --accent-color: #00cc66;
+  --background: #f5f5f5;
+  --surface: #ffffff;
+  --text-primary: #1a1a1a;
+  --text-secondary: #666666;
+  --border-color: #e0e0e0;
+  --danger-color: #ff3333;
+  --shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 4px 16px rgba(0, 0, 0, 0.15);
+  
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+  --spacing-xl: 32px;
+  
+  --border-radius: 8px;
+  --transition: all 0.3s ease;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: var(--background);
+  color: var(--text-primary);
+  overflow: hidden;
+}
+
+.container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  width: 100vw;
+}
+
+/* ============= HEADER ============= */
+
+.header {
+  background: linear-gradient(135deg, var(--primary-color), #ff9933);
+  color: white;
+  padding: var(--spacing-md);
+  text-align: center;
+  box-shadow: var(--shadow);
+  flex-shrink: 0;
+}
+
+.header h1 {
+  font-size: 1.8rem;
+  font-weight: 700;
+  margin-bottom: var(--spacing-xs);
+}
+
+.header .subtitle {
+  font-size: 0.9rem;
+  opacity: 0.9;
+}
+
+/* ============= MAIN CONTENT ============= */
+
+.content {
+  display: flex;
+  flex: 1;
+  gap: var(--spacing-md);
+  overflow: hidden;
+  padding: var(--spacing-md);
+}
+
+/* Mobile: stack vertically */
+@media (max-width: 900px) {
+  .content {
+    flex-direction: column;
+    overflow-y: auto;
+    padding: var(--spacing-sm);
+  }
+}
+
+/* ============= CANVAS SECTION ============= */
+
+.canvas-section {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+  min-width: 0;
+}
+
+.canvas-wrapper {
+  flex: 1;
+  position: relative;
+  background: white;
+  border-radius: var(--border-radius);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+  border: 2px solid var(--border-color);
+}
+
+#trackCanvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  cursor: crosshair;
+  touch-action: none;
+}
+
+.canvas-info {
+  position: absolute;
+  bottom: var(--spacing-sm);
+  right: var(--spacing-sm);
+  background: rgba(0, 0, 0, 0.7);
+  color: white;
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-radius: var(--border-radius);
+  font-size: 0.85rem;
+  z-index: 10;
+  pointer-events: none;
+}
+
+/* Hide canvas info on mobile */
+@media (max-width: 600px) {
+  .canvas-info {
+    display: none;
+  }
+}
+
+/* ============= STATUS BOX ============= */
+
+.status-box {
+  display: flex;
+  gap: var(--spacing-md);
+  background: var(--surface);
+  padding: var(--spacing-md);
+  border-radius: var(--border-radius);
+  box-shadow: var(--shadow);
+  justify-content: space-around;
+  flex-wrap: wrap;
+}
+
+.status-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-xs);
+}
+
+.status-label {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.status-value {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: var(--primary-color);
+  font-family: 'Courier New', monospace;
+}
+
+/* ============= CONTROL PANEL ============= */
+
+.control-panel {
+  width: 280px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+  overflow-y: auto;
+  padding: var(--spacing-sm);
+  background: var(--surface);
+  border-radius: var(--border-radius);
+  box-shadow: var(--shadow);
+}
+
+@media (max-width: 900px) {
+  .control-panel {
+    width: 100%;
+    max-height: 400px;
+  }
+}
+
+/* ============= CONTROL GROUPS ============= */
+
+.control-group {
+  padding: var(--spacing-md);
+  background: var(--background);
+  border-radius: var(--border-radius);
+  border-left: 4px solid var(--primary-color);
+}
+
+.control-group h3 {
+  font-size: 0.95rem;
+  font-weight: 700;
+  margin-bottom: var(--spacing-md);
+  color: var(--text-primary);
+}
+
+.control-divider {
+  height: 1px;
+  background: var(--border-color);
+  margin: var(--spacing-md) 0;
+}
+
+/* ============= BUTTONS ============= */
+
+.btn {
+  width: 100%;
+  padding: var(--spacing-sm) var(--spacing-md);
+  margin-bottom: var(--spacing-sm);
+  border: none;
+  border-radius: var(--border-radius);
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  background: var(--secondary-color);
+  color: white;
+  transition: var(--transition);
+  touch-action: manipulation;
+  min-height: 44px; /* Mobile friendly */
+}
+
+.btn:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+  opacity: 0.95;
+}
+
+.btn:active {
+  transform: translateY(0);
+  box-shadow: var(--shadow);
+}
+
+.btn-primary {
+  background: var(--primary-color);
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.btn-danger {
+  background: var(--danger-color);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none !important;
+}
+
+/* ============= SLIDERS ============= */
+
+.slider-group {
+  margin-bottom: var(--spacing-md);
+}
+
+.slider-group label {
+  display: block;
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin-bottom: var(--spacing-sm);
+  color: var(--text-primary);
+}
+
+.slider-group small {
+  display: block;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  margin-top: var(--spacing-xs);
+}
+
+.slider {
+  width: 100%;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--border-color);
+  outline: none;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--primary-color);
+  cursor: pointer;
+  transition: var(--transition);
+  box-shadow: var(--shadow);
+}
+
+.slider::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+  box-shadow: var(--shadow-lg);
+}
+
+.slider::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--primary-color);
+  cursor: pointer;
+  border: none;
+  transition: var(--transition);
+  box-shadow: var(--shadow);
+}
+
+.slider::-moz-range-thumb:hover {
+  transform: scale(1.2);
+  box-shadow: var(--shadow-lg);
+}
+
+/* ============= CHECKBOXES ============= */
+
+.checkbox-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.checkbox-group label {
+  display: flex;
+  align-items: center;
+  font-size: 0.95rem;
+  cursor: pointer;
+  user-select: none;
+  gap: var(--spacing-sm);
+}
+
+.checkbox-group input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  accent-color: var(--primary-color);
+}
+
+/* ============= INFO BOXES ============= */
+
+.info-box {
+  background: linear-gradient(135deg, #e8f4f8, #f0e8f8);
+  padding: var(--spacing-md);
+  border-radius: var(--border-radius);
+  border-left: 4px solid var(--accent-color);
+  font-size: 0.9rem;
+  color: var(--text-primary);
+}
+
+.info-box p {
+  margin: 0;
+  line-height: 1.5;
+}
+
+.info-panel ul {
+  list-style: none;
+  font-size: 0.9rem;
+  line-height: 1.8;
+  color: var(--text-secondary);
+}
+
+.info-panel li {
+  margin-bottom: var(--spacing-sm);
+}
+
+.info-panel strong {
+  color: var(--text-primary);
+}
+
+/* ============= FOOTER ============= */
+
+.footer {
+  background: var(--text-primary);
+  color: white;
+  text-align: center;
+  padding: var(--spacing-sm);
+  font-size: 0.85rem;
+  flex-shrink: 0;
+}
+
+/* ============= SCROLLBAR STYLING ============= */
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--background);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--primary-color);
+}
+
+/* ============= DARK MODE (Optional) ============= */
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #1a1a1a;
+    --surface: #2d2d2d;
+    --text-primary: #ffffff;
+    --text-secondary: #b0b0b0;
+    --border-color: #404040;
+    --secondary-color: #555555;
+  }
+
+  .canvas-wrapper {
+    background: #1a1a1a;
+  }
+
+  .canvas-info {
+    background: rgba(255, 255, 255, 0.9);
+    color: #000;
+  }
+}
+
+/* ============= RESPONSIVE DESIGN ============= */
+
+@media (max-width: 600px) {
+  .header h1 {
+    font-size: 1.4rem;
+  }
+
+  .header {
+    padding: var(--spacing-sm);
+  }
+
+  .control-panel {
+    max-height: 500px;
+  }
+
+  .status-box {
+    gap: var(--spacing-sm);
+  }
+
+  .status-value {
+    font-size: 1.2rem;
+  }
+
+  .btn {
+    padding: var(--spacing-sm);
+    font-size: 0.9rem;
+    min-height: 40px;
+  }
+}
+
+/* ============= ANIMATIONS ============= */
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+.processing {
+  animation: pulse 1.5s infinite;
+}
+
+/* ============= PRINT STYLES ============= */
+
+@media print {
+  .control-panel,
+  .header,
+  .footer,
+  .canvas-info {
+    display: none;
+  }
+
+  .content {
+    padding: 0;
+    gap: 0;
+  }
+
+  .canvas-wrapper {
+    box-shadow: none;
+    border: none;
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "name": "Monaco-Style Street Circuit",
+  "description": "Complex street circuit with multiple corners of varying tightness",
+  "trackPoints": [
+    {"x": 100, "y": 100},
+    {"x": 200, "y": 90},
+    {"x": 300, "y": 100},
+    {"x": 380, "y": 150},
+    {"x": 400, "y": 200},
+    {"x": 380, "y": 250},
+    {"x": 320, "y": 280},
+    {"x": 250, "y": 300},
+    {"x": 180, "y": 320},
+    {"x": 120, "y": 350},
+    {"x": 80, "y": 380},
+    {"x": 50, "y": 320},
+    {"x": 40, "y": 250},
+    {"x": 60, "y": 180},
+    {"x": 100, "y": 140}
+  ],
+  "racingLine": null,
+  "timestamp": "2026-01-04T00:00:00Z"
+}
